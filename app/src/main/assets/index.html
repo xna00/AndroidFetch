@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>Example Domain</title>
+
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type="text/css">
+        body {
+            background-color: #f0f0f2;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+        }
+
+        div {
+            width: 600px;
+            margin: 5em auto;
+            padding: 2em;
+            background-color: #fdfdff;
+            border-radius: 0.5em;
+            box-shadow: 2px 3px 7px 2px rgba(0, 0, 0, 0.02);
+        }
+
+        a:link,
+        a:visited {
+            color: #38488f;
+            text-decoration: none;
+        }
+
+        @media (max-width: 700px) {
+            div {
+                margin: 0 auto;
+                width: auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div>
+        <h1>Example Domain</h1>
+        <p>This domain is for use in illustrative examples in documents. You may use this
+            domain in literature without prior coordination or asking for permission.</p>
+        <p><a href="https://www.iana.org/domains/example">More information...</a></p>
+        <button id="b1">Show toast</button>
+    </div>
+    <script>
+        let count = 0
+        const map = {}
+        const fetch = () => {
+            const id = (count++).toString()
+            map[id] = {
+
+            }
+            const p = new Promise((res, rej) => {
+                map[id].res = res
+                map[id].rej = rej
+            })
+            Android.fetch("https://baidu.com/", "GET", "{}", "[]", id)
+            return p
+        }
+        window.requestResolve = (id, status, statusText, headers) => {
+            console.log('requestResolve', id, status, statusText, headers)
+            const stream = new ReadableStream({
+                start(controller) {
+                    map[id].controller = controller
+                    // controller.close();
+                    // controller.enqueue(value);
+                },
+            })
+            const ret = new Response(stream, {
+                status,
+                headers,
+                statusText,
+            })
+            map[id].res(ret)
+        }
+        window.requestFail = (id) => {
+            map[id] = undefined
+        }
+        window.streamPush = (id, line) => {
+            console.log('requestPush')
+            console.log(id, line)
+            const controller = map[id].controller
+            const arr = new Uint8Array((line))
+            controller.enqueue(arr)
+        }
+        window.streamSucceed = (id) => {
+            console.log('streamSucceed', id)
+            const controller = map[id].controller
+            controller.close()
+            map[id] = undefined
+        }
+
+        window.streamError = (id) => {
+            console.log('streamError', id)
+            const controller = map[id].controller
+            controller.error(new Error("StreamError"))
+            map[id] = undefined
+        }
+
+        b1.onclick = () => {
+            fetch().then(res => {
+                const ret = res.text()
+                console.log('ret', ret, res.status, [...res.headers])
+                return ret
+            }).then(res => {
+                console.log('text', res)
+                Android.showToast(res)
+            })
+        }
+    </script>
+</body>
+
+</html>
